@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Texture Rescaler</title>
+    <!-- Memuat Tailwind CSS untuk styling yang responsif dan estetis --><script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Font F77 Minecraft */
+        @font-face {
+            font-family: 'F77 Minecraft';
+            src: url('assets/fonts/F77Minecraft.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        /* Mengatur font untuk seluruh dokumen */
+        body {
+            font-family: 'F77 Minecraft', sans-serif; /* Prioritaskan F77 Minecraft */
+            background-color: #f7f9fb;
+        }
+        h1, h2, p, label, button, select, div, a {
+            font-family: 'F77 Minecraft', sans-serif;
+        }
+
+        /* Style dasar untuk tombol gambar */
+        .image-button {
+            /* Hapus width dan height fixed, gunakan rasio dan ukuran dari kelas Tailwind */
+            background-size: contain; /* Memastikan gambar tombol pas di dalam elemen */
+            background-repeat: no-repeat;
+            background-position: center;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0; /* Sembunyikan teks asli jika ada, karena gambar sudah ada teksnya */
+            padding: 0;
+            transition: background-image 0.1s ease-in-out; /* Transisi untuk efek hover */
+            /* Tetapkan rasio aspek aset: 910 / 290 = ~3.137 */
+            aspect-ratio: 910 / 290;
+        }
+        
+        /* Ukuran tombol di layar kecil */
+        @media (max-width: 768px) {
+            .image-button {
+                width: 100%; /* Lebar penuh di layar kecil */
+                height: auto; /* Tinggi otomatis agar rasio terjaga */
+            }
+        }
+
+        /* Status default */
+        #uploadButton { background-image: url('assets/UPLOAD BUTTON.PNG'); }
+        #rescaleButton { background-image: url('assets/RESCALE BUTTON.PNG'); }
+        #downloadLink { background-image: url('assets/DOWNLOAD BUTTON.PNG'); }
+        #infoButton { background-image: url('assets/INFO BUTTON.PNG'); }
+        #closeInfoButton { background-image: url('assets/CLOSE BUTTON.PNG'); }
+
+
+        /* Status hover/selected */
+        #uploadButton:hover, #uploadButton.selected { background-image: url('assets/UPLOAD BUTTON SELECTED.PNG'); }
+        #rescaleButton:hover, #rescaleButton.selected { background-image: url('assets/RESCALE BUTTON SELECTED.PNG'); }
+        #downloadLink:hover, #downloadLink.selected { background-image: url('assets/DOWNLOAD BUTTON SELECTED.PNG'); }
+        #infoButton:hover, #infoButton.selected { background-image: url('assets/INFO BUTTON SELECTED.PNG'); }
+        #closeInfoButton:hover, #closeInfoButton.selected { background-image: url('assets/CLOSE BUTTON SELECTED.PNG'); }
+
+
+        /* Untuk tombol yang disabled */
+        #rescaleButton:disabled {
+            opacity: 0.6; /* Sedikit transparan saat disabled */
+            cursor: not-allowed;
+        }
+
+        /* Style untuk modal overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #333; /* Darker background for Minecraft feel */
+            color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            border: 3px solid #666; /* Border like Minecraft UI */
+        }
+        .modal-content h3 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #aaffaa; /* Greenish title */
+            text-align: center;
+        }
+        .modal-content p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        .modal-content ul {
+            list-style-type: disc;
+            margin-left: 20px;
+            margin-bottom: 20px;
+        }
+        .modal-content ul li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div class="max-w-4xl mx-auto bg-gray-800 shadow-xl rounded-2xl p-6 md:p-10 border-4 border-gray-600 relative">
+        
+        <!-- Tombol Info di Kanan Atas -->
+        <div class="absolute top-4 right-4 z-10">
+            <!-- Ukuran Proporsional: w-24 (96px) x h-[31px] (proportional) -->
+            <button id="infoButton" class="image-button w-24 h-[31px]"></button>
+        </div>
+
+        <!-- Konten Utama Header -->
+        <div class="flex flex-col items-center">
+            <div class="flex justify-center mb-4">
+                <img src="assets/Icon Sasera.png" alt="Icon Sasera" class="w-24 h-24 sm:w-32 sm:h-32 object-contain">
+            </div>
+            <h1 class="text-3xl font-extrabold text-lime-400 mb-2 text-center sm:text-4xl">
+                Minecraft Texture Rescaler
+            </h1>
+        </div>
+        <p class="text-center text-gray-300 mb-8 text-lg sm:text-xl">
+            Unggah tekstur, pilih skala, dan dapatkan hasil dengan resolusi lebih tinggi
+        </p>
+
+        <!-- Bagian Kontrol Input --><div class="space-y-6 md:space-y-0 md:flex md:space-x-6 mb-8 items-center justify-center">
+
+            <!-- Input File & Upload Button --><div class="flex flex-col items-center">
+                <input type="file" id="fileInput" accept="image/*" class="hidden">
+                <!-- Ukuran Proporsional: w-64 (256px) x h-[82px] (proportional) -->
+                <button id="uploadButton" class="image-button w-64 h-[82px]"></button>
+            </div>
+
+            <!-- Pilihan Resolusi --><div class="flex-grow">
+                <label for="resolutionSelect" class="block text-lg font-medium text-gray-200 mb-2 text-center">
+                    Pilih Resolusi Target (Tinggi)
+                </label>
+                <select id="resolutionSelect" class="w-full p-3 border border-gray-500 rounded-lg shadow-sm focus:ring-lime-500 focus:border-lime-500 transition duration-150 ease-in-out bg-gray-700 text-white text-base">
+                    <option value="720">HD (720p) - Tinggi 720px</option>
+                    <option value="1080" selected>FHD (1080p) - Tinggi 1080px</option>
+                    <option value="1440">2K / QHD (1440p) - Tinggi 1440px</option>
+                    <option value="2160">4K / UHD (2160p) - Tinggi 2160px</option>
+                </select>
+            </div>
+
+            <!-- Tombol Rescale --><div class="flex flex-col items-center">
+                <!-- Ukuran Proporsional: w-64 (256px) x h-[82px] (proportional) -->
+                <button id="rescaleButton" class="image-button w-64 h-[82px]" disabled></button>
+            </div>
+        </div>
+        
+
+        <!-- Area Pesan & Loading --><div id="messageArea" class="text-center text-sm mb-6 min-h-[20px] text-gray-400"></div>
+
+        <!-- Area Preview --><div id="previewArea" class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="text-center p-4 border border-gray-600 rounded-lg bg-gray-700">
+                <h2 class="text-xl font-semibold mb-3 text-gray-200">Tekstur Asli</h2>
+                <div class="flex justify-center items-center h-48 bg-gray-800 rounded-lg mb-2 overflow-hidden">
+                    <img id="originalImage" src="" alt="Tekstur Asli" class="max-h-full max-w-full object-contain hidden rounded" />
+                    <p id="originalPlaceholder" class="text-gray-500">Belum ada tekstur diunggah.</p>
+                </div>
+                <p id="originalDims" class="text-sm text-gray-400"></p>
+            </div>
+            
+            <div class="text-center p-4 border border-lime-600 rounded-lg bg-lime-900/20">
+                <h2 class="text-xl font-semibold mb-3 text-lime-400">Tekstur Rescale</h2>
+                <div class="flex justify-center items-center h-48 bg-lime-900/30 rounded-lg mb-2 relative overflow-hidden">
+                    <img id="resizedImage" src="" alt="Tekstur Rescale" class="max-h-full max-w-full object-contain hidden rounded" />
+                    <p id="resizedPlaceholder" class="text-lime-500">Hasil akan muncul di sini.</p>
+                    <!-- Download Link: w-20 (80px) x h-[25px] (proportional) -->
+                    <a id="downloadLink" href="#" download="resized_texture.png" class="image-button absolute bottom-2 right-2 w-20 h-[25px] hidden transition duration-150"></a>
+                </div>
+                <p id="resizedDims" class="text-sm text-lime-400 font-medium"></p>
+            </div>
+        </div>
+
+        <!-- Kanvas tersembunyi untuk pemrosesan --><canvas id="hiddenCanvas" class="hidden"></canvas>
+    </div>
+
+    <!-- Modal Info --><div id="infoModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 class="mb-4">Informasi Program</h3>
+            <p>Program ini dirancang khusus untuk mengubah skala (rescale) tekstur Minecraft:</p>
+            <ul>
+                <li><strong>Metode Penskalaan:</strong> Selalu menggunakan metode *Nearest Neighbor*. Ini berarti piksel-piksel akan diperbesar tanpa dihaluskan, cocok untuk mempertahankan gaya pikselated Minecraft.</li>
+                <li><strong>Rasio Aspek:</strong> Rasio aspek gambar asli akan selalu dipertahankan, menghindari distorsi atau peregangan.</li>
+                <li><strong>Resolusi Target:</strong> Anda dapat memilih resolusi target berdasarkan tinggi (720p, 1080p, 2K, 4K). Lebar akan disesuaikan secara otomatis.</li>
+                <li><strong>Format Output:</strong> Gambar hasil akan disimpan dalam format PNG untuk kualitas terbaik tanpa kompresi *lossy*.</li>
+            </ul>
+            <div class="flex justify-center mt-6">
+                <!-- Close Button: w-32 (128px) x h-[41px] (proportional) -->
+                <button id="closeInfoButton" class="image-button w-32 h-[41px]"></button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // Variabel global untuk menyimpan data gambar asli
+        let originalImg = null;
+
+        // Mendapatkan elemen DOM
+        const fileInput = document.getElementById('fileInput');
+        const uploadButton = document.getElementById('uploadButton');
+        const rescaleButton = document.getElementById('rescaleButton');
+        const resolutionSelect = document.getElementById('resolutionSelect');
+        const originalImage = document.getElementById('originalImage');
+        const resizedImage = document.getElementById('resizedImage');
+        const originalPlaceholder = document.getElementById('originalPlaceholder');
+        const resizedPlaceholder = document.getElementById('resizedPlaceholder');
+        const originalDims = document.getElementById('originalDims');
+        const resizedDims = document.getElementById('resizedDims');
+        const downloadLink = document.getElementById('downloadLink');
+        const messageArea = document.getElementById('messageArea');
+        const hiddenCanvas = document.getElementById('hiddenCanvas');
+        const ctx = hiddenCanvas.getContext('2d');
+        const infoButton = document.getElementById('infoButton');
+        const infoModal = document.getElementById('infoModal');
+        const closeInfoButton = document.getElementById('closeInfoButton');
+        
+        // Atur agar rendering menggunakan metode Nearest Neighbor (tidak ada anti-aliasing)
+        ctx.imageSmoothingEnabled = false; 
+
+        // Fungsi untuk menampilkan pesan (loading atau error)
+        function showMessage(text, isError = false) {
+            messageArea.textContent = text;
+            messageArea.className = `text-center text-sm mb-6 min-h-[20px] ${isError ? 'text-red-400' : 'text-lime-300'}`;
+        }
+
+        // --- Event Listener untuk Upload Foto ---
+        uploadButton.addEventListener('click', () => {
+            fileInput.click(); // Memicu klik pada input file tersembunyi
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file || !file.type.startsWith('image/')) {
+                showMessage('File yang dipilih harus berupa gambar.', true);
+                rescaleButton.disabled = true;
+                return;
+            }
+
+            showMessage('Tekstur berhasil diunggah. Siap diproses.', false);
+            rescaleButton.disabled = false;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    originalImg = img;
+                    originalImage.src = e.target.result;
+                    originalImage.classList.remove('hidden');
+                    originalPlaceholder.classList.add('hidden');
+                    originalDims.textContent = `Dimensi Asli: ${img.width} x ${img.height} px`;
+
+                    // Reset hasil
+                    resizedImage.classList.add('hidden');
+                    resizedPlaceholder.classList.remove('hidden');
+                    resizedDims.textContent = '';
+                    downloadLink.classList.add('hidden');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+
+        // --- Event Listener untuk Tombol Rescale ---
+        rescaleButton.addEventListener('click', () => {
+            if (!originalImg) {
+                showMessage('Harap unggah tekstur terlebih dahulu.', true);
+                return;
+            }
+
+            showMessage('Sedang memproses, harap tunggu...', false);
+            rescaleButton.disabled = true;
+
+            const targetHeight = parseInt(resolutionSelect.value, 10);
+
+            // Mendapatkan dimensi asli
+            const originalWidth = originalImg.width;
+            const originalHeight = originalImg.height;
+
+            // Menghitung rasio aspek
+            const aspectRatio = originalWidth / originalHeight;
+
+            // Menghitung dimensi baru berdasarkan target tinggi
+            const newHeight = targetHeight;
+            const newWidth = Math.round(newHeight * aspectRatio); // Gunakan Math.round untuk memastikan integer
+
+            // Atur ukuran kanvas
+            hiddenCanvas.width = newWidth;
+            hiddenCanvas.height = newHeight;
+            
+            // Set context untuk Nearest Neighbor (Penting untuk mempertahankan ketajaman pixel)
+            ctx.imageSmoothingEnabled = false; 
+
+            // Gambar ulang foto ke kanvas dengan dimensi baru
+            ctx.drawImage(originalImg, 0, 0, newWidth, newHeight);
+
+            // Mengubah konten kanvas menjadi Data URL (PNG)
+            const dataUrl = hiddenCanvas.toDataURL('image/png');
+
+            // Menampilkan hasil
+            resizedImage.src = dataUrl;
+            resizedImage.classList.remove('hidden');
+            resizedPlaceholder.classList.add('hidden');
+            resizedDims.textContent = `Dimensi Baru: ${newWidth} x ${newHeight} px`;
+
+            // Mengaktifkan link download
+            downloadLink.href = dataUrl;
+            downloadLink.download = `minecraft_texture_${newHeight}p.png`;
+            downloadLink.classList.remove('hidden');
+
+            showMessage('Pemrosesan selesai!', false);
+            rescaleButton.disabled = false;
+        });
+
+        // Event listener untuk memastikan tombol Rescale aktif/nonaktif saat resolusi berubah
+        resolutionSelect.addEventListener('change', () => {
+            if (originalImg) {
+                rescaleButton.disabled = false;
+            }
+        });
+
+        // --- Event Listener untuk Tombol Info ---
+        infoButton.addEventListener('click', () => {
+            infoModal.classList.remove('hidden');
+        });
+
+        closeInfoButton.addEventListener('click', () => {
+            infoModal.classList.add('hidden');
+        });
+
+        // Event listener untuk tombol (agar ada efek selected saat di-klik)
+        const buttons = [uploadButton, rescaleButton, infoButton, closeInfoButton, downloadLink];
+        buttons.forEach(button => {
+            button.addEventListener('mousedown', () => {
+                button.classList.add('selected');
+            });
+            button.addEventListener('mouseup', () => {
+                button.classList.remove('selected');
+            });
+            button.addEventListener('mouseleave', () => {
+                button.classList.remove('selected');
+            });
+        });
+    </script>
+</body>
+</html>
